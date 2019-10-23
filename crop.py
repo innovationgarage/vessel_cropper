@@ -3,14 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import time
+import sys
+from collect_data import *
+import requests
+import shutil
+import tempfile
 
-def showImage(img):
-    plt.figure()
-    plt.axis('off')
-    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    plt.show()
-
-def cropImage(img, bbox, margin, output_size):
+def cropImage(img, bbox, margin, output_size, imo_no, output_dir):
     h, w, ch = img.shape
     left, right, top, bottom = bbox
     if left - margin < 0:
@@ -21,18 +20,17 @@ def cropImage(img, bbox, margin, output_size):
         rght = w
     else:
         right = right + margin
-    if top - margin < 0:
+    if top - margin*2 < 0:
         top = 0
     else:
-        top = top - margin
-    if bottom + margin > h:
+        top = int(top - margin*2)
+    if bottom + margin/2 > h:
         bottom = h
     else:
-        bottom = bottom + margin
+        bottom = int(bottom + margin/2)
     cropped = img[top:bottom, left:right]
     cropped = cv2.resize(cropped,output_size, interpolation = cv2.INTER_CUBIC)
-    cv2.imshow('cropped', cropped)
-    cv2.waitKey()
+    cv2.imwrite(os.path.join(output_dir, '{}.jpg'.format(imo_no)), cropped)
 
 def detectBoat(img):
     t0 = time.time()
@@ -67,27 +65,56 @@ def chooseImage(records, goal_ar=1):
     closest_ar = np.argmin(ars)
     return ims[closest_ar]
 
+def downloadImage(image_url, local_path):
+    resp = requests.get(image_url, stream=True)
+    if resp.ok:
+        local_file = open(local_path, "wb")
+        resp.raw.decode_content = True
+        shutil.copyfileobj(resp.raw, local_file)
+        del resp
+        return True
+    else:
+        return False
+    
 if __name__=="__main__":
     OUTPUT_SIZE = (152, 152)
-    INPUT_DIR = "saghar/"
+    IMO = sys.argv[1] #9126807
+    INPUT_DIR = 'temp' #temporary
     OUTPUT_DIR = "out/"
     ASPECT_RATIO = 1
     MARGIN = 50
-    
+
+    start = time.time()
+    #Config the model
     frozen_weights = "model/frozen_inference_graph.pb"
     model_config = "model/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
     cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
 
-    images = os.listdir(INPUT_DIR)
-    records = {}
-    for image in images:
-        img = cv2.imread(os.path.join(INPUT_DIR, image))
-        detection = detectBoat(img)
-        if detection:
-            records[image] = {'bbox': detectBoat(img)}
-            records[image] = calculateAR(records[image])
+    #Get the ship gallery from ES & download photos
+    image_urls = findShip(IMO)
+    if image_urls:
+        with tempfile.TemporaryDirectory(dir=INPUT_DIR) as tmpdirname:
+            # print('created temporary directory', tmpdirname)
+            for i, image_url in enumerate(image_urls):
+                res = downloadImage(image_url, os.path.join(tmpdirname, '{}.jpg'.format(i)))
+                # print(image_url, res)
+            #Run ship photos through an object detector and get bboxes
+            images = os.listdir(tmpdirname)
+            records = {}
+            for image in images:
+                img = cv2.imread(os.path.join(tmpdirname, image))
+                detection = detectBoat(img)
+                if detection:
+                    records[image] = {'bbox': detectBoat(img)}
+                    records[image] = calculateAR(records[image])
 
-    image_to_use = chooseImage(records, ASPECT_RATIO)
-    img = cv2.imread(os.path.join(INPUT_DIR, image_to_use))
-    bbox = [int(el) for el in records[image_to_use]['bbox']]
-    cropImage(img, bbox, MARGIN, OUTPUT_SIZE)    
+            #Choose the most relevant photo and crop it to the best region and size
+            image_to_use = chooseImage(records, ASPECT_RATIO)
+            img = cv2.imread(os.path.join(tmpdirname, image_to_use))
+            bbox = [int(el) for el in records[image_to_use]['bbox']]
+            cropImage(img, bbox, MARGIN, OUTPUT_SIZE, IMO, OUTPUT_DIR)
+        end = time.time()
+        time_elapsed = end - start
+        print("Total elapsed time was {} seconds.".format(time_elapsed))
+    else:
+        print('I found nothing!')
