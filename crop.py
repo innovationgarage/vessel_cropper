@@ -74,8 +74,8 @@ if __name__=="__main__":
     ASPECT_RATIO = 1
     MARGIN = 50
     
-    frozen_weights = "/home/saghar/IG/projects/epimp-brain/TFModels/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb"
-    model_config = "/home/saghar/IG/projects/epimp-brain/TFModels/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
+    frozen_weights = "model/frozen_inference_graph.pb"
+    model_config = "model/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
     cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
 
     images = os.listdir(INPUT_DIR)
