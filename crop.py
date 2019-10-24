@@ -29,10 +29,10 @@ def cropImage(img, bbox, margin, output_size, imo_no, output_dir):
     else:
         bottom = int(bottom + margin/2)
     cropped = img[top:bottom, left:right]
-    cropped = cv2.resize(cropped,output_size, interpolation = cv2.INTER_CUBIC)
+#    cropped = cv2.resize(cropped,output_size, interpolation = cv2.INTER_CUBIC)
     cv2.imwrite(os.path.join(output_dir, '{}.jpg'.format(imo_no)), cropped)
 
-def detectBoat(img):
+def detectBoat(img, cvNet):
     t0 = time.time()
     rows = img.shape[0]
     cols = img.shape[1]
@@ -75,10 +75,9 @@ def downloadImage(image_url, local_path):
         return True
     else:
         return False
-    
-if __name__=="__main__":
+
+def crop(IMO):
     OUTPUT_SIZE = (152, 152)
-    IMO = sys.argv[1] #9126807
     INPUT_DIR = 'temp' #temporary
     OUTPUT_DIR = "out/"
     ASPECT_RATIO = 1
@@ -95,7 +94,7 @@ if __name__=="__main__":
     if image_urls:
         with tempfile.TemporaryDirectory(dir=INPUT_DIR) as tmpdirname:
             # print('created temporary directory', tmpdirname)
-            for i, image_url in enumerate(image_urls):
+            for i, image_url in enumerate(image_urls[:10]):
                 res = downloadImage(image_url, os.path.join(tmpdirname, '{}.jpg'.format(i)))
                 # print(image_url, res)
             #Run ship photos through an object detector and get bboxes
@@ -103,9 +102,9 @@ if __name__=="__main__":
             records = {}
             for image in images:
                 img = cv2.imread(os.path.join(tmpdirname, image))
-                detection = detectBoat(img)
+                detection = detectBoat(img, cvNet)
                 if detection:
-                    records[image] = {'bbox': detectBoat(img)}
+                    records[image] = {'bbox': detectBoat(img, cvNet)}
                     records[image] = calculateAR(records[image])
 
             #Choose the most relevant photo and crop it to the best region and size
@@ -116,5 +115,11 @@ if __name__=="__main__":
         end = time.time()
         time_elapsed = end - start
         print("Total elapsed time was {} seconds.".format(time_elapsed))
+        return os.path.join(OUTPUT_DIR, '{}.jpg'.format(IMO))
     else:
         print('I found nothing!')
+        return None
+    
+if __name__=="__main__":
+    IMO = 9421776
+    outfile = crop(IMO)

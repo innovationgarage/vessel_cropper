@@ -11,7 +11,10 @@ def findShip(imo_no):
     )    
     s = Search(using=client, index=config.index) \
         .filter("term", imo=imo_no)
-    response = s.execute()
+    try:
+        response = s.execute()
+    except:
+        return None
     if response.hits:
         try:
             gallery = response[0].gallery
