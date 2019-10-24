@@ -119,7 +119,48 @@ def crop(IMO):
     else:
         print('I found nothing!')
         return None
+
+def test(test_path):
+    OUTPUT_SIZE = (152, 152)
+    INPUT_DIR = 'temp' #temporary
+    OUTPUT_DIR = "out/"
+    ASPECT_RATIO = 1
+    MARGIN = 50
+    IMO = 'tst'
+    
+    start = time.time()
+    #Config the model
+    frozen_weights = "model/frozen_inference_graph.pb"
+    model_config = "model/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
+    cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
+
+    #Get the ship gallery from ES & download photos
+    images = os.listdir(test_path)
+    tmpdirname = test_path
+
+    if images:
+        records = {}
+        for image in images:
+            img = cv2.imread(os.path.join(tmpdirname, image))
+            detection = detectBoat(img, cvNet)
+            if detection:
+                records[image] = {'bbox': detectBoat(img, cvNet)}
+                records[image] = calculateAR(records[image])
+
+        print(images, records)
+        #Choose the most relevant photo and crop it to the best region and size
+        image_to_use = chooseImage(records, ASPECT_RATIO)
+        img = cv2.imread(os.path.join(tmpdirname, image_to_use))
+        bbox = [int(el) for el in records[image_to_use]['bbox']]
+        cropImage(img, bbox, MARGIN, OUTPUT_SIZE, IMO, OUTPUT_DIR)
+        end = time.time()
+        time_elapsed = end - start
+        print("Total elapsed time was {} seconds.".format(time_elapsed))
+        return os.path.join(OUTPUT_DIR, '{}.jpg'.format(IMO))
+    else:
+        print('I found nothing!')
+        return None
     
 if __name__=="__main__":
-    IMO = 9421776
-    outfile = crop(IMO)
+    test_path = sys.argv[1]
+    outfile = test(test_path)
