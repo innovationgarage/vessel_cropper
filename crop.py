@@ -23,7 +23,7 @@ def cropImage(img, bbox, margin, output_size, imo_no, output_dir):
     if top - margin*2 < 0:
         top = 0
     else:
-        top = int(top - margin*2)
+        top = int(top - margin*1.5)
     if bottom + margin/2 > h:
         bottom = h
     else:
@@ -90,7 +90,8 @@ def crop(IMO):
     cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
 
     #Get the ship gallery from ES & download photos
-    image_urls = findShip(IMO)
+    #image_urls = findShipES(IMO)
+    thumbnail_urls, image_urls = findShipSS(IMO)
     if image_urls:
         with tempfile.TemporaryDirectory(dir=INPUT_DIR) as tmpdirname:
             # print('created temporary directory', tmpdirname)
@@ -126,7 +127,7 @@ def test(test_path):
     OUTPUT_DIR = "out/"
     ASPECT_RATIO = 1
     MARGIN = 50
-    IMO = 'tst'
+    IMO = 'tst_{}'.format(test_path)
     
     start = time.time()
     #Config the model
