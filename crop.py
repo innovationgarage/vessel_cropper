@@ -29,7 +29,7 @@ def cropImage(img, bbox, margin, output_size, imo_no, output_dir):
     else:
         bottom = int(bottom + margin/2)
     cropped = img[top:bottom, left:right]
-#    cropped = cv2.resize(cropped,output_size, interpolation = cv2.INTER_CUBIC)
+    #cropped = cv2.resize(cropped,output_size, interpolation = cv2.INTER_CUBIC)
     cv2.imwrite(os.path.join(output_dir, '{}.jpg'.format(imo_no)), cropped)
 
 def detectBoat(img, cvNet):
@@ -76,7 +76,8 @@ def downloadImage(image_url, local_path):
     else:
         return False
 
-def crop(IMO):
+def crop(IMO, thumbnail, cvNet):
+
     OUTPUT_SIZE = (152, 152)
     INPUT_DIR = 'temp' #temporary
     OUTPUT_DIR = "out/"
@@ -84,18 +85,20 @@ def crop(IMO):
     MARGIN = 50
 
     start = time.time()
-    #Config the model
-    frozen_weights = "model/frozen_inference_graph.pb"
-    model_config = "model/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
-    cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
+    # #Config the model
+    # frozen_weights = "model/frozen_inference_graph.pb"
+    # model_config = "model/faster_rcnn_inception_v2_coco_2018_01_28.pbtxt"
+    # cvNet = cv2.dnn.readNetFromTensorflow(frozen_weights, model_config)
 
     #Get the ship gallery from ES & download photos
     #image_urls = findShipES(IMO)
-    thumbnail_urls, image_urls = findShipSS(IMO)
+    small_urls, image_urls = findShipSS(IMO)
+    if thumbnail=='true':
+        image_urls = small_urls
     if image_urls:
         with tempfile.TemporaryDirectory(dir=INPUT_DIR) as tmpdirname:
             # print('created temporary directory', tmpdirname)
-            for i, image_url in enumerate(image_urls[:10]):
+            for i, image_url in enumerate(image_urls):
                 res = downloadImage(image_url, os.path.join(tmpdirname, '{}.jpg'.format(i)))
                 # print(image_url, res)
             #Run ship photos through an object detector and get bboxes
